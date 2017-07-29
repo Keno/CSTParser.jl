@@ -10,6 +10,10 @@ mutable struct EXPR{T}
     val::String
 end
 
+function Base.copy(x::EXPR{T}) where T
+    EXPR{T}(copy(x.args), x.span, copy(x.defs), x.val)
+end
+
 abstract type IDENTIFIER end
 abstract type LITERAL{K} end
 abstract type KEYWORD{K} end
@@ -46,7 +50,7 @@ function INSTANCE(ps::ParseState)
         push!(ps.diagnostics, Diagnostic{Diagnostics.UnexpectedInputEnd}(ps.t.startbyte + (0:0), [], "Unexpected end of input"))
         return EXPR{ERROR}(EXPR[], span, Variable[], "Unexpected end of input")
     end
-    return isidentifier(ps.t) ? IDENTIFIER(ps) : 
+    return isidentifier(ps.t) ? IDENTIFIER(ps) :
         isliteral(ps.t) ? LITERAL(ps) :
         iskw(ps.t) ? KEYWORD(ps) :
         isoperator(ps.t) ? OPERATOR(ps) :
