@@ -5,9 +5,21 @@ mutable struct Variable
 end
 mutable struct EXPR{T}
     args::Vector
-    span::Int
+    span::UnitRange{Int}
+    fullspan::UnitRange{Int}
     defs::Vector{Variable}
     val::String
+end
+
+function EXPR{T}(args, defs=Variable[], val="") where T
+    ret = EXPR{T}(args, 0:-1, 0:-1, defs, val)
+    update_span!(ret)
+    ret
+end
+
+function update_span!(x::EXPR)
+    x.span = first(first(x.args).span):last(last(x.args).span)
+    x.fullspan = first(first(x.args).fullspan):last(last(x.args).fullspan)
 end
 
 function Base.copy(x::EXPR{T}) where T
@@ -25,30 +37,32 @@ abstract type ERROR end
 
 
 function LITERAL(ps::ParseState)
-    span = ps.nt.startbyte - ps.t.startbyte
+    span = ps.t.startbyte:ps.t.endbyte
+    full_span = ps.t.startbyte:ps.nt.startbyte-1
     if ps.t.kind == Tokens.STRING || ps.t.kind == Tokens.TRIPLE_STRING ||
        ps.t.kind == Tokens.CMD || ps.t.kind == Tokens.TRIPLE_CMD
         return parse_string_or_cmd(ps)
     else
-        EXPR{LITERAL{ps.t.kind}}(EXPR[], span, Variable[], ps.t.val)
+        EXPR{LITERAL{ps.t.kind}}(EXPR[], span, full_span, Variable[], ps.t.val)
     end
 end
 
-IDENTIFIER(ps::ParseState) = EXPR{IDENTIFIER}(EXPR[], ps.nt.startbyte - ps.t.startbyte, Variable[], ps.t.val)
+IDENTIFIER(ps::ParseState) = EXPR{IDENTIFIER}(EXPR[], ps.t.startbyte:ps.t.endbyte, ps.t.startbyte:ps.nt.startbyte-1, Variable[], ps.t.val)
 
-OPERATOR(ps::ParseState) = EXPR{OPERATOR{precedence(ps.t),ps.t.kind,ps.dot}}(EXPR[], ps.nt.startbyte - ps.t.startbyte, Variable[], "")
+OPERATOR(ps::ParseState) = EXPR{OPERATOR{precedence(ps.t),ps.t.kind,ps.dot}}(EXPR[], ps.t.startbyte:ps.t.endbyte, ps.t.startbyte:ps.nt.startbyte-1, Variable[], "")
 
-KEYWORD(ps::ParseState) = EXPR{KEYWORD{ps.t.kind}}(EXPR[], ps.nt.startbyte - ps.t.startbyte, Variable[], "")
+KEYWORD(ps::ParseState) = EXPR{KEYWORD{ps.t.kind}}(EXPR[], ps.t.startbyte:ps.t.endbyte, ps.t.startbyte:ps.nt.startbyte-1, Variable[], "")
 
-PUNCTUATION(ps::ParseState) = EXPR{PUNCTUATION{ps.t.kind}}(EXPR[], ps.nt.startbyte - ps.t.startbyte, Variable[], "")
+PUNCTUATION(ps::ParseState) = EXPR{PUNCTUATION{ps.t.kind}}(EXPR[], ps.t.startbyte:ps.t.endbyte, ps.t.startbyte:ps.nt.startbyte-1, Variable[], "")
 
 function INSTANCE(ps::ParseState)
-    span = ps.nt.startbyte - ps.t.startbyte
-    ps.errored && return EXPR{ERROR}(EXPR[], span, Variable[], "")
+    span = ps.t.startbyte:ps.t.endbyte
+    full_span = ps.t.startbyte:ps.nt.startbyte-1
+    ps.errored && return EXPR{ERROR}(EXPR[], span, full_span, Variable[], "")
     if ps.t.kind == Tokens.ENDMARKER
         ps.errored = true
         push!(ps.diagnostics, Diagnostic{Diagnostics.UnexpectedInputEnd}(ps.t.startbyte + (0:0), [], "Unexpected end of input"))
-        return EXPR{ERROR}(EXPR[], span, Variable[], "Unexpected end of input")
+        return EXPR{ERROR}(EXPR[], span, full_span, Variable[], "Unexpected end of input")
     end
     return isidentifier(ps.t) ? IDENTIFIER(ps) :
         isliteral(ps.t) ? LITERAL(ps) :
@@ -56,7 +70,7 @@ function INSTANCE(ps::ParseState)
         isoperator(ps.t) ? OPERATOR(ps) :
         ispunctuation(ps.t) ? PUNCTUATION(ps) :
         ps.t.kind == Tokens.SEMICOLON ? PUNCTUATION(ps) :
-        (ps.errored = true; EXPR{ERROR}(EXPR[], span, Variable[], ""))
+        (ps.errored = true; EXPR{ERROR}(EXPR[], span, full_span, Variable[], ""))
 end
 
 
@@ -65,10 +79,10 @@ end
 # heads
 
 
-const TRUE = EXPR{LITERAL{Tokens.TRUE}}(EXPR[], 0, Variable[], "")
-const FALSE = EXPR{LITERAL{Tokens.FALSE}}(EXPR[], 0, Variable[], "")
-const NOTHING = EXPR{HEAD{:nothing}}(EXPR[], 0, Variable[], "nothing")
-const GlobalRefDOC = EXPR{HEAD{:globalrefdoc}}(EXPR[], 0, Variable[], "globalrefdoc")
+const TRUE = EXPR{LITERAL{Tokens.TRUE}}(EXPR[], 0:-1, 0:-1, Variable[], "")
+const FALSE = EXPR{LITERAL{Tokens.FALSE}}(EXPR[], 0:-1, 0:-1, Variable[], "")
+const NOTHING = EXPR{HEAD{:nothing}}(EXPR[], 0:-1, 0:-1, Variable[], "nothing")
+const GlobalRefDOC = EXPR{HEAD{:globalrefdoc}}(EXPR[], 0:-1, 0:-1, Variable[], "globalrefdoc")
 
 
 

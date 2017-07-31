@@ -42,11 +42,11 @@ include("scoping.jl")
 """
     parse_expression(ps)
 
-Parses an expression until `closer(ps) == true`. Expects to enter the 
-`ParseState` the token before the the beginning of the expression and ends 
-on the last token. 
+Parses an expression until `closer(ps) == true`. Expects to enter the
+`ParseState` the token before the the beginning of the expression and ends
+on the last token.
 
-Acceptable starting tokens are: 
+Acceptable starting tokens are:
 + A keyword
 + An opening parentheses or brace.
 + An operator.
@@ -101,8 +101,8 @@ end
 """
     parse_compound(ps, ret)
 
-Handles cases where an expression - `ret` - is not followed by 
-`closer(ps) == true`. Possible juxtapositions are: 
+Handles cases where an expression - `ret` - is not followed by
+`closer(ps) == true`. Possible juxtapositions are:
 + operators
 + `(`, calls
 + `[`, ref
@@ -141,7 +141,7 @@ function parse_compound(ps::ParseState, ret)
     elseif (ret isa EXPR{IDENTIFIER} || (ret isa EXPR{BinarySyntaxOpCall} && ret.args[2] isa EXPR{OPERATOR{DotOp,Tokens.DOT,false}})) && (ps.nt.kind == Tokens.STRING || ps.nt.kind == Tokens.TRIPLE_STRING)
         next(ps)
         @catcherror ps startbyte arg = parse_string_or_cmd(ps, ret)
-        ret = EXPR{x_Str}(EXPR[ret, arg], ret.span + arg.span, Variable[], "")
+        ret = EXPR{x_Str}(EXPR[ret, arg], Variable[], "")
     # Suffix on x_str
     elseif ret isa EXPR{x_Str} && ps.nt.kind == Tokens.IDENTIFIER
         next(ps)
@@ -231,11 +231,11 @@ function parse_paren(ps::ParseState)
 
     ret = EXPR{TupleH}(EXPR[INSTANCE(ps)], - startbyte, Variable[], "")
     format_lbracket(ps)
-    
+
     @catcherror ps startbyte @default ps @nocloser ps inwhere @closer ps paren parse_comma_sep(ps, ret, false, true)
 
     if length(ret.args) == 2 && !(ret.args[2] isa EXPR{UnarySyntaxOpCall} && ret.args[2].args[2] isa EXPR{OPERATOR{DddotOp,Tokens.DDDOT,false}})
-        
+
         if ps.ws.kind != SemiColonWS || (length(ret.args) == 2 && ret.args[2] isa EXPR{Block})
             ret = EXPR{InvisBrackets}(ret.args, ret.span, Variable[], "")
         end
@@ -245,7 +245,7 @@ function parse_paren(ps::ParseState)
     next(ps)
     push!(ret.args, INSTANCE(ps))
     format_rbracket(ps)
-    
+
     ret.span = ps.nt.startbyte - startbyte
 
     return ret
@@ -305,7 +305,7 @@ function parse(ps::ParseState, cont = false)
             next(ps)
             push!(top.args, EXPR{LITERAL{nothing}}(EXPR[], ps.nt.startbyte, Variable[], "comments"))
         end
-        
+
         while !ps.done && !ps.errored
             curr_line = ps.nt.startpos[1]
             ret = parse_doc(ps)

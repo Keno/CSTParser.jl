@@ -24,7 +24,8 @@ interpolating operators.
 function parse_string_or_cmd(ps::ParseState, prefixed = false)
     startbyte = ps.t.startbyte
 
-    span = ps.nt.startbyte - ps.t.startbyte
+    span = ps.t.startbyte:ps.t.endbyte
+    fullspan = ps.t.startbyte:(ps.nt.startbyte-1)
     istrip = (ps.t.kind == Tokens.TRIPLE_STRING) || (ps.t.kind == Tokens.TRIPLE_CMD)
     iscmd = ps.t.kind == Tokens.CMD || ps.t.kind == Tokens.TRIPLE_CMD
 
@@ -67,17 +68,17 @@ function parse_string_or_cmd(ps::ParseState, prefixed = false)
     # there are interpolations in the string
     if prefixed != false || iscmd
         val = istrip ? ps.t.val[4:end-3] : ps.t.val[2:end-1]
-        expr = EXPR{LITERAL{ps.t.kind}}(Expr[], span, Variable[],
+        expr = EXPR{LITERAL{ps.t.kind}}(Expr[], span, fullspan, Variable[],
             iscmd ? replace(val, "\\`", "`") :
                     replace(val, "\\\"", "\""))
         if istrip
             adjust_lcp(expr)
-            ret = EXPR{StringH}(EXPR[expr], span, Variable[], "")
+            ret = EXPR{StringH}(EXPR[expr], span, fullspan, Variable[], "")
         else
             return expr
         end
     else
-        ret = EXPR{StringH}(EXPR[], span, Variable[], "")
+        ret = EXPR{StringH}(EXPR[], span, fullspan, Variable[], "")
         input = IOBuffer(ps.t.val)
         seek(input, istrip ? 3 : 1)
         b = IOBuffer()

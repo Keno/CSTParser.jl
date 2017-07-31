@@ -35,6 +35,6 @@ function parse_block(ps::ParseState, ret::EXPR{Block}, start_col = 0, closers = 
         end
         push!(ret.args, a)
     end
-    ret.span = ps.nt.startbyte - startbyte
+    update_span!(ret)
     return ret
 end

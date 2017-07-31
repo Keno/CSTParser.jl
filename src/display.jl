@@ -1,7 +1,7 @@
 function Base.show(io::IO, x::EXPR{T}, indent = 0) where T
     indent == 3 && return
     name = sprint(show, T)
-    print(io, "  "^indent, T, "  ", x.span)
+    print(io, "  "^indent, T, "  ", x.fullspan, " ", x.span)
     if isempty(x.defs)
         println(io)
     else

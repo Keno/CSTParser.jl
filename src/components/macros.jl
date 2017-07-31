@@ -10,7 +10,7 @@ function parse_kw(ps::ParseState, ::Type{Val{Tokens.MACRO}})
     else
         @catcherror ps startbyte sig = @closer ps block @closer ps ws parse_expression(ps)
     end
-    
+
     _get_sig_defs!(sig)
     block = EXPR{Block}(EXPR[], 0, Variable[], "")
     @catcherror ps startbyte @default ps parse_block(ps, block, start_col)
@@ -29,24 +29,25 @@ Parses a macro call. Expects to start on the `@`.
 function parse_macrocall(ps::ParseState)
     startbyte = ps.t.startbyte
     next(ps)
-    mname = EXPR{IDENTIFIER}(EXPR[], ps.nt.startbyte - ps.lt.startbyte, Variable[], string("@", ps.t.val))
+    span = ps.lt.startbyte:ps.nt.startbyte-1
+    mname = EXPR{IDENTIFIER}(EXPR[], span, span, Variable[], string("@", ps.t.val))
     # Handle cases with @ at start of dotted expressions
     if ps.nt.kind == Tokens.DOT && isemptyws(ps.ws)
         while ps.nt.kind == Tokens.DOT
             next(ps)
             op = INSTANCE(ps)
             if ps.nt.kind != Tokens.IDENTIFIER
-                return EXPR{ERROR}(EXPR[], 0, Variable[], "Invalid macro name")
+                return EXPR{ERROR}(EXPR[], 0:-1, 0:-1, Variable[], "Invalid macro name")
             end
             next(ps)
             nextarg = INSTANCE(ps)
-            mname = EXPR{BinarySyntaxOpCall}(EXPR[mname, op, Quotenode(nextarg)], mname.span + op.span + nextarg.span, Variable[], "")
+            mname = EXPR{BinarySyntaxOpCall}(EXPR[mname, op, Quotenode(nextarg)], Variable[], "")
         end
     end
-    ret = EXPR{MacroCall}(EXPR[mname], 0, Variable[], "")
+    ret = EXPR{MacroCall}(EXPR[mname], Variable[], "")
 
     if ps.nt.kind == Tokens.COMMA
-        ret.span = ps.nt.startbyte - startbyte
+        update_span!(ret)
         return ret
     end
     if isemptyws(ps.ws) && ps.nt.kind == Tokens.LPAREN
@@ -66,7 +67,7 @@ function parse_macrocall(ps::ParseState)
             end
         end
     end
-    ret.span = ps.nt.startbyte - startbyte
+    update_span!(ret)
     return ret
 end
 
